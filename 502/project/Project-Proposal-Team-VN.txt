@@ -1,0 +1,53 @@
+● A project proposal of what the Research Question is & Proposed methodology
+H-1B Visa Petitions Data Analysis 2011- 2016
+
+The questions I will be answering through data include:
+
+1) Which Employers submit the most number of H-1B visa applications?
+
+2) What is the Percentage share out of the 85,000 visa cap for the Employers with most applications?
+
+3) What are the most common Job Titles applied for by the high applicant employers?
+
+4) How do the salaries compare for Software jobs between high applicant employers and other popular employers?
+
+● General description of data
+The H-1B is an employment-based, non-immigrant visa category for temporary foreign workers in the United States. For a foreign national to apply for H1-B visa, an US employer must offer a job and petition for H-1B visa with the US immigration department. This is the most common visa status applied for and held by international students once they complete college/ higher education (Masters, PhD) and work in a full-time position. The Office of Foreign Labor Certification (OFLC) generates disclosure data that is useful information about the immigration programs including the H1-B visa.
+
+● Link to data set
+https://www.kaggle.com/nsharan/h-1b-visa
+
+● List of explanatory variables
+The CASE_STATUS field denotes the status of the application after LCA processing. Certified applications are filed with USCIS for H-1B approval. CASE_STATUS: CERTIFIED does not mean the applicant got his/her H-1B visa approved, it just means that he/she is eligible to file an H-1B. For more details on this update, read this discussion.
+
+CASE_STATUS: Status associated with the last significant event or decision. Valid values include “Certified,” “Certified-Withdrawn,” Denied,” and “Withdrawn”.
+
+EMPLOYER_NAME: Name of employer submitting labor condition application.
+
+SOC_NAME: Occupational name associated with the SOC_CODE. SOC_CODE is the occupational code associated with the job being requested for temporary labor condition, as classified by the Standard Occupational Classification (SOC) System.
+
+JOB_TITLE: Title of the job
+
+FULL_TIME_POSITION: Y = Full Time Position; N = Part Time Position
+
+PREVAILING_WAGE: Prevailing Wage for the job being requested for temporary labor condition. The wage is listed at annual scale in USD. The prevailing wage for a job position is defined as the average wage paid to similarly employed workers in the requested occupation in the area of intended employment. The prevailing wage is based on the employer’s minimum requirements for the position.
+
+YEAR: Year in which the H-1B visa petition was filed
+
+WORKSITE: City and State information of the foreign worker's intended area of employment
+
+lon: longitude of the Worksite
+
+lat: latitude of the Worksite
+
+● Size of data set
+Size: 105.58 MB
+Number of record: more than 1 million
+
+● Team name and members
+Team Name: VN
+Team member:
+	Mai, Khanh Trong
+	Nguyen, Duc
+	Nguyen, Truong Tuan
+	Tran, Thai Nam

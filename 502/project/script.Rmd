@@ -1,0 +1,261 @@
+---
+title: "Likelihood of being eligible to file H1-B Visa"
+author: "Jatinder Singh Gill"
+date: "Machine Learning Project- Phase II"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+# Overview of the model building methodology
+
+The steps involved in building a model are discussed below:
+
+1)	Defining the objective: It is impossible to get useful information from raw data without knowing the objective. It is futile to run analyses until the motive of running those analyses is established. The objective needs to be clear, whether it is to stop the churn of existing customers or to focus on acquiring new customers. Building a completely different model from the desired one can lead to inadequate analysis. In a worst case scenario, implementing that in real world can lead to huge losses to companies. 
+
+2)	Exploratory analysis: Before building a model, it is imperative to explore the data. Every variable has to be scrutinised and different statistics such as mean, maximum, minimum needs to be checked to handle the outliers. Missing values should be investigated properly to check their significance. For example, missing income might suggest that the person is unemployed. Missing values can also be imputed by the mean or the median of a variable or by using the k nearest neighbour statistical technique. 
+
+3)	Model Building: After performing the initial exploration, the data is divided into two groups of training and testing sets. If the model is built on full data, there can be a risk of over fitting that particular set of data, and the model might fail in the real world. To reduce this over fitting, the data was divided into two sets of 80% training and 20% testing. By building a model on 80% and testing on rest of 20% untouched data, the effectiveness of a model could be assessed. In addition, the relationship between the variables needs to be tested. The relation between each independent variable and the response variable was checked such that the independent variables behaved in a similar way in a model as they behaved individually when run against the response variable. Additionally, highly correlated independent variables were removed otherwise there could be a possibility of signs of coefficients of variables being reversed. 
+
+4) Checking Performance Measures: This section discusses the different measures used to assess the performance of a model. As discussed in section 3, data split is done through 80% of data in training and 20% of data in testing. Different predictive learning techniques learn the data from the training set and build a model on it. It then implements the model on the testing set to check the performance of a model. There are different measures to check the performance of the model. 
+
+Confusion Metrix: It is a matrix or a type of contingency table which provides the count    of correct and incorrect predictions made by the classification model as compared to the    actual outcome in the data. 
+
+ROC and AUC: A ROC curve is a graphical representation of the sensitivity (true positive    rate) against 1- specificity (false positive rate). It represents different points at       different threshold values of the output probability. There is always a trade-off between  sensitivity and specificity. If the probability threshold level is set to high, true     positives will increase and true negatives will decrease which will lift the sensitivity and dent the specificity. If the probability cut off is set to low, the opposite will    occur. Generally, the aim is to have the sensitivity and specificity to be 100%. However, it is impossible to achieve both at same time. Therefore, the closer the curve is to upper left corner and the higher is the accuracy of the model (Vuk & Curk, 2006).
+
+Accuracy can be also be measured by the area under the curve (AUC) which can be             calculated from the ROC curve. 
+
+5)	Implementing the model: The last stage of the modeling process involves implementing the model in real life. Consider a scenario where the company's objective is to retain the customers and they build a model to gain the insights about their customers. They will get to know the particular characteristics of the customers which are responsible for their attrition. Customers would be segmented on the basis of their characteristics and the company will focus on that customer segment where the attrition rate is very high. 
+
+# Objective
+
+The objective of this phase of the project is to develop a model which can tell us whether an individual is eligible to file an H1B visa based on various characteristics in the data.The objective is achieved through creating three differennt machine learning models too predict the outcome-eligible/not eligible for visa filing. 
+
+# Preliminary data processing
+
+Data Cleaning and preprocessing
+```{r required libraries and preprocessing, warning=FALSE, message = FALSE}
+library("randomForest")
+library("party")
+library("dplyr")
+library("tidyr")
+library("sqldf")
+library("caret")
+library("glmnet")
+library("car")
+library("ROCR")
+##library("gbm")
+
+h1b_kaggle <- read.csv("../input/h1b_kaggle.csv", header=T)
+
+x22<-filter(h1b_kaggle,CASE_STATUS %in% c('CERTIFIED','DENIED')  & YEAR == 2016 )
+x22<-x22[complete.cases(x22),]
+
+h1b.rf<-x22
+
+h1b.rf[,c(1,3,5,8,10,11)]<-NULL
+
+##h1b.rf$SOC_NAME<-tolower(h1b.rf$SOC_NAME)
+h1b.rf<-separate(data = h1b.rf, col = WORKSITE, into = c("CITY", "STATE"), sep = ",")
+
+
+## Data Cleaning-Selecting only major occupations
+h1b.rf$occ<-NA
+h1b.rf$occ[grep("engineer",h1b.rf$SOC_NAME, ignore.case = T)]<-"ENGINEER"
+h1b.rf$occ[grep("manager",h1b.rf$SOC_NAME, ignore.case = T)]<-"MANAGER"
+h1b.rf$occ[grep("technician",h1b.rf$SOC_NAME, ignore.case = T)]<-"TECHNICIAN"
+h1b.rf$occ[grep("teacher",h1b.rf$SOC_NAME, ignore.case = T)]<-"TEACHER"
+h1b.rf$occ[grep("executive",h1b.rf$SOC_NAME, ignore.case = T)]<-"EXECUTIVE"
+h1b.rf$occ[grep("accountant",h1b.rf$SOC_NAME, ignore.case = T)]<-"ACCOUNTANT"
+
+
+h1b.rf$SOC_NAME<-NULL
+h1b.rf$CITY<- NULL
+
+## removing states with low count
+a<-sqldf("select count(*) cc, STATE from 'h1b.rf' group by STATE")
+b<-sqldf("select * from a where cc>2000 AND STATE <> ' NA'")
+h1b.rf$STATE<-ifelse(h1b.rf$STATE %in% b$STATE,h1b.rf$STATE,NA)
+
+##converting the dependent variable to binary
+h1b.rf$CASE_STATUS<-ifelse(h1b.rf$CASE_STATUS %in% c("CERTIFIED"),"1","0")
+
+##selecting only complete cases
+h1b.rf<-h1b.rf[complete.cases(h1b.rf),]
+
+##converting categorical variables into factors
+h1b.rf[,c(-3)]<- lapply(h1b.rf[,c(-3)], as.factor)
+
+
+```
+
+# Model Building - LOGISTIC REGRESSION
+
+Logistic regression is one of the simplest classification techniques which uses regression of independent variables against response variable to predict the response variable (James et al., 2013). In this case, there is a binary output variable Y and x covariates, and the conditional probability Pr(Y = 1|X = x) is modeled as a function of x. Any unknown parameters in the function are to be estimated by the maximum likelihood method. Logistic regression gives a conditional distribution of response Y given X variables. This regression is slightly different from simple linear regression as it uses nonlinear transformation to give the probabilities that range between 0 and 1 (McCullagh, 1984). Logistic regression falls under the family of generalized linear models which uses the Link function to relate the response variable to the linear model. Link function for logistic regression is a canonical logit link which equates the log of odds of response to the linear model, so that when probability p is calculated, it will always be between 0 and 1. 
+ 
+```{r logistic regression model, warning=FALSE, message = FALSE}
+
+h1b.glm<-h1b.rf
+
+##converting categorical variables to dummy variables for logistic regression
+dmy<-dummyVars("~.",data=h1b.glm)
+
+trsf<-data.frame(predict(dmy,newdata=h1b.glm))
+data_with_dum<-cbind(h1b.glm[1],trsf[,c(-1,-2)])
+
+colnames(data_with_dum)
+#n-1 dummy variables for n categories
+data_final<-data_with_dum[,c(-3,-37,-43)]
+
+##fitting the model on the complete dataset
+h1bglm.fit <-glm(CASE_STATUS~., family=binomial(link = logit), data = data_final)
+summary(h1bglm.fit)
+
+
+##finding and removing variables with high VIF
+viff<-vif(h1bglm.fit)
+which(as.numeric(viff)>8,arr.ind=T)
+data_final<-data_final[,c(-5,-23,-31)]
+
+##splitting the dataset into training and testing set
+set.seed(32388)
+
+inTrain <- createDataPartition(y = data_final$CASE_STATUS,p = .79, list = FALSE)
+training <- data_final[inTrain,]
+testing <- data_final[-inTrain,]
+
+
+##fitting the model on the training dataset
+h1bglm.train.fit <-glm(CASE_STATUS~., family=binomial(link = logit), data = training)
+summary(h1bglm.train.fit)
+
+coef(h1bglm.fit)
+
+
+###Finding Prdicitons on Testing set
+prediction<-predict(h1bglm.train.fit,newdata=testing,type="response")
+aa<-as.data.frame(prediction)
+
+```
+
+
+```{r pred, echo= FALSE}
+##cutoff for prediction
+prediction[prediction<0.97]<-0
+prediction[prediction>=0.97]<-1
+```
+
+```{r measures,warning=FALSE, message = FALSE}
+##confusion matrix
+confusionMatrix(prediction,testing$CASE_STATUS)
+
+####ROC Curve
+pred <- prediction( prediction, testing$CASE_STATUS)
+perf <- performance(pred,"tpr","fpr")
+plot(perf)
+
+###Area Under the Curve
+auc.tmp <- performance(pred,"auc");
+auc <- as.numeric(auc.tmp@y.values)
+auc
+
+```
+
+
+# Model Building - DECISION TREE
+
+Decision tree is one of the most sophisticated supervised learning technique which works on any kind of data whether categorical or continuous. There are no assumptions considered about the data. It even works on missing values and no imputation is required (Tung et al., 2012). 
+It splits the tree into different branches using the most relevant characteristics until end of the tree is reached. Tree will continue to grow recursively combining multiple influential features until homogenous groups are found. It assumes that decision boundaries are parallel to axes and create rules with the help of explanatory variables.
+
+```{r Decision Tree Model, warning=FALSE, message = FALSE}
+
+##splitting data into training and test set
+set.seed(32388)
+inTrain11 <- createDataPartition(y = h1b.rf$CASE_STATUS,p = .79, list = FALSE)
+training1 <- h1b.rf[inTrain11,]
+testing1 <- h1b.rf[-inTrain11,]
+
+#####Running ctree on training set
+ctree1<-ctree(CASE_STATUS~.,data=training1)
+#####Predicitng on testing set
+prediction1<-predict(ctree1,newdata=testing1)
+###To check the confusion matrix
+confusionMatrix(prediction1,testing1$CASE_STATUS)
+
+probabilities <- 1- unlist(treeresponse(ctree1,newdata=testing1), use.names=F)[seq(1,nrow(testing1)*2,2)]
+################ROC CURVE
+pred1 <- prediction( probabilities, testing1$CASE_STATUS)
+perf1 <- performance(pred1,"tpr","fpr")
+plot(perf1)
+
+
+
+##############AREA Under the Curve
+auc.tmp1 <- performance(pred1,"auc");
+
+auc1 <- as.numeric(auc.tmp1@y.values)
+
+auc1
+```
+
+# Model Building - BOOSTING
+Boosting is an ensembling method which uses multiple trees to get the final prediction. It uses numbers of weak predictors and convert them into a strong predictor. Trees are run in different steps, each step building a tree with few predictors. In each step, it learns from the errors of the previous trees. It runs the tree using weak predictors and notices the observations of the data where it is not performing well. It then reweights these observations and gives extra weight to them such that future weak learners can focus more on these. Certain weights are given to each tree and are combined together (Patri & Patnaik, 2015).
+
+```{r boosting technique, warning=FALSE, message = FALSE}
+
+set.seed(1111)
+model<-train(CASE_STATUS~.,method="gbm",data=training1,verbose=F)
+
+summary(model)
+####Getting Boosting Parameters
+plot(model)
+
+#### Predicing on testing set
+pred3<- predict(model, testing1,type="prob")
+
+
+##cutoff for prediction
+pred3[2]<- ifelse(pred3[2]<0.97,0,1)
+aaa<-pred3[[2]]
+
+
+confusionMatrix(aaa,testing1$CASE_STATUS)
+
+
+#### ROC Curve
+pred2 <- prediction(aaa, testing1$CASE_STATUS)
+perf2 <- performance(pred2,"tpr","fpr")
+plot(perf2)
+
+
+###Area Under the Curve
+auc.tmp2 <- performance(pred2,"auc");
+auc2 <- as.numeric(auc.tmp2@y.values)
+auc2
+
+
+```
+
+
+#Comparison of the algorithms
+In order to compare the algorithm discussed above, the ROC curve and the accuracy are plotted.
+```{r model comparison}
+##plotting ROC curves
+plot(perf)
+plot(perf1, add= TRUE)
+plot(perf2, add= TRUE)
+
+
+##Bar chart for AUC
+barplot(c(auc,auc1,auc2), names = c("Logistic","Decision Tree","Boosting"), 
+        main = "Area under the curve" ,
+        ylab = "AUC", 
+        cex.names=0.7, 
+        col = "Blue"
+)
+
+```
+#Conclusion
+
+The report examines the impact of different parameters on visa eligibility using various machine learning methodologies. Comparison of the modeling methods such as logistic, decision tree and boosting yields that decision tree provides the best performance for this dataset. In this case, boosting provides least predictive power and shows no value while logistic regression and decision tree show some predictive power. In conclusion, it can be said that without scrutinizing the data carefully, logical conclusions cannot be made. Different model performances will vary depending on the objective of the analysis.
